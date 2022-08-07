@@ -1,0 +1,44 @@
+
+.settings {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0.5em;
+    gap: 0.5em;
+}
+
+.settings h1 {
+    font-size: 1.5em;
+    text-align: center;
+    margin: 0px;
+}
+
+.data_point_list {
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+
+    width: 14em;
+    height: 0px;
+    padding: 0.5em;
+
+    border: 1px solid #555;
+    border-radius: 0.3em;
+    overflow-y: scroll;
+}
+
+.data_point {
+    display: flex;
+    margin: 0.5em 0.5em 0.5em 0em;
+    width: 12em;
+}
+
+.data_point input {
+    flex-grow: 1;
+    width: 0px;
+}
+
+.data_point label {
+    margin: 0em 0.5em;
+}
+

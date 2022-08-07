@@ -1,0 +1,9 @@
+
+.splitter {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-auto-flow: column;
+    width: 100%;
+    height: 100%;
+}
+
