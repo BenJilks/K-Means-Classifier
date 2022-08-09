@@ -97,8 +97,8 @@ export default function DataDisplay({ data_points }: { data_points: DataPoint[] 
             context.fillStyle = '#FFF'
             context.fillRect(0, 0, canvas.width, canvas.height)
             draw_grid(canvas, context, offset)
-            draw_axes(canvas, context, offset)
             draw_data_points(context, offset, data_points)
+            draw_axes(canvas, context, offset)
         })
     }, [offset, data_points])
 
