@@ -3,7 +3,7 @@ import {DataPoint} from '../..'
 import styles from './index.module.css'
 
 const random_decimal_places = 3
-const random_scale = 4
+const random_scale = 6
 
 type DataPointProps = {
     key: string,
@@ -65,14 +65,17 @@ export default function Settings({ data_points, set_data_points }: SettingsProps
 
     const on_randomize_data = () => {
         const decimal_places = 10 ** random_decimal_places
-        const pick_random = () => {
-            const random_number = Math.random()*random_scale*2 - random_scale
-            return Math.round(random_number * decimal_places) / decimal_places
-        }
+        const round = (x: number) =>
+            Math.round(x * decimal_places) / decimal_places
 
         const new_points = new Array(data_points.length)
         for (let i = 0; i < data_points.length; i++) {
-            new_points[i] = { x: pick_random(), y: pick_random() }
+            const rotation = Math.random() * Math.PI * 2
+            const radius = Math.random() * random_scale
+            new_points[i] = {
+                x: round(Math.sin(rotation) * radius),
+                y: round(Math.cos(rotation) * radius),
+            }
         }
         
         set_data_points(new_points)
