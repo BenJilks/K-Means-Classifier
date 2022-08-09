@@ -31,7 +31,7 @@ function draw_grid(canvas: HTMLCanvasElement,
     context.stroke()
 }
 
-function draw_scale(canvas: HTMLCanvasElement,
+function draw_axes(canvas: HTMLCanvasElement,
                     context: CanvasRenderingContext2D,
                     offset: { x: number, y: number }) {
     context.beginPath()
@@ -71,13 +71,15 @@ export default function DataDisplay() {
         }
 
         const context = canvas.getContext('2d')!
-        canvas.width = canvas.getBoundingClientRect().width
-        canvas.height = canvas.getBoundingClientRect().height
+        requestAnimationFrame(() => {
+            canvas.width = canvas.getBoundingClientRect().width
+            canvas.height = canvas.getBoundingClientRect().height
 
-        context.fillStyle = '#FFF'
-        context.fillRect(0, 0, canvas.width, canvas.height)
-        draw_grid(canvas, context, offset)
-        draw_scale(canvas, context, offset)
+            context.fillStyle = '#FFF'
+            context.fillRect(0, 0, canvas.width, canvas.height)
+            draw_grid(canvas, context, offset)
+            draw_axes(canvas, context, offset)
+        })
     }, [offset])
 
     const on_mouse_down = () => set_is_mouse_down(true)
