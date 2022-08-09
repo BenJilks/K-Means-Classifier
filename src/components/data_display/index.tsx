@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
+import {DataPoint} from '../..'
 import styles from './index.module.css'
 
 const grid_size_px = 100
 const grid_color = '#999'
 const grid_scale_width = 4
 const grid_scale_color = '#000'
+const point_color = '#99F'
+const point_radius = 10
 
 function draw_grid(canvas: HTMLCanvasElement,
                    context: CanvasRenderingContext2D,
@@ -53,7 +56,23 @@ function draw_axes(canvas: HTMLCanvasElement,
     context.stroke()
 }
 
-export default function DataDisplay() {
+function draw_data_points(context: CanvasRenderingContext2D,
+                          offset: { x: number, y: number },
+                          data_points: DataPoint[]) {
+    for (const point of data_points) {
+        const [x, y] = [
+            point.x * grid_size_px + offset.x,
+            point.y * grid_size_px + offset.y,
+        ]
+
+        context.beginPath()
+        context.fillStyle = point_color
+        context.arc(x, y, point_radius, 0, Math.PI * 2)
+        context.fill()
+    }
+}
+
+export default function DataDisplay({ data_points }: { data_points: DataPoint[] }) {
     const canvas_ref = useRef(document.createElement('canvas'))
     const [offset, set_offset] = useState({ x: NaN, y: NaN })
     const [is_mouse_down, set_is_mouse_down] = useState(false)
@@ -79,8 +98,9 @@ export default function DataDisplay() {
             context.fillRect(0, 0, canvas.width, canvas.height)
             draw_grid(canvas, context, offset)
             draw_axes(canvas, context, offset)
+            draw_data_points(context, offset, data_points)
         })
-    }, [offset])
+    }, [offset, data_points])
 
     const on_mouse_down = () => set_is_mouse_down(true)
     const on_mouse_up = () => set_is_mouse_down(false)

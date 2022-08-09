@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import {DataPoint} from '../..'
 import styles from './index.module.css'
 
-const default_point_count = 10
 const random_decimal_places = 3
+const random_scale = 4
 
-type DataPoint = { x: number, y: number }
 type DataPointProps = {
     key: string,
     data_point: DataPoint,
@@ -30,10 +30,13 @@ function DataPointComponent({ key, data_point, set_point }: DataPointProps) {
     )
 }
 
-export default function Settings() {
+type SettingsProps = {
+    data_points: DataPoint[],
+    set_data_points: React.Dispatch<React.SetStateAction<DataPoint[]>>,
+}
+
+export default function Settings({ data_points, set_data_points }: SettingsProps) {
     const [data_point_components, set_data_point_components] = useState([] as JSX.Element[])
-    const [data_points, set_data_points] = useState(
-        new Array(default_point_count).fill({ x: 0, y: 0 }))
 
     useEffect(() => {
         const on_point_set = (key: number, new_point: DataPoint) => {
@@ -54,7 +57,7 @@ export default function Settings() {
         })
 
         set_data_point_components(components)
-    }, [data_points])
+    }, [data_points, set_data_points])
 
     const on_add_data_point = () => {
         set_data_points(data_points.concat({ x: 0, y: 0 }))
@@ -62,8 +65,10 @@ export default function Settings() {
 
     const on_randomize_data = () => {
         const decimal_places = 10 ** random_decimal_places
-        const pick_random = () =>
-            Math.round((Math.random()*20 - 10) * decimal_places) / decimal_places
+        const pick_random = () => {
+            const random_number = Math.random()*random_scale*2 - random_scale
+            return Math.round(random_number * decimal_places) / decimal_places
+        }
 
         const new_points = new Array(data_points.length)
         for (let i = 0; i < data_points.length; i++) {
