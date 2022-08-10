@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import {DataPoint} from '../..'
-import {group_data_points} from '../../classifier'
+import { DataPoint } from '../..'
+import { classify, group_data_points } from '../../classifier'
 import styles from './index.module.css'
 
 const grid_size_px = 100
@@ -88,9 +88,12 @@ function draw_data_points(context: CanvasRenderingContext2D,
 
 function draw_groups(context: CanvasRenderingContext2D,
                      offset: { x: number, y: number },
+                     data_points: DataPoint[],
                      groups: DataPoint[]) {
+    const new_groups = classify(data_points, groups)
     for (let i = 0; i < groups.length; i++) {
         const group = groups[i]
+        const new_group = new_groups[i]
         const [x, y] = [
             group.x * grid_size_px + offset.x,
             group.y * grid_size_px + offset.y,
@@ -101,6 +104,21 @@ function draw_groups(context: CanvasRenderingContext2D,
         context.lineWidth = 5
         context.setLineDash([11, 6.2])
         context.arc(x, y, group_radius, 0, Math.PI * 2)
+        context.stroke()
+
+        const [new_x, new_y] = [
+            new_group.x * grid_size_px + offset.x,
+            new_group.y * grid_size_px + offset.y,
+        ]
+        context.beginPath()
+        context.lineWidth = 3
+        context.setLineDash([11/2, 6.2])
+        context.arc(new_x, new_y, group_radius * 0.8, 0, Math.PI * 2)
+        context.stroke()
+
+        context.beginPath()
+        context.moveTo(x, y)
+        context.lineTo(new_x, new_y)
         context.stroke()
     }
 }
@@ -136,7 +154,7 @@ export default function DataDisplay({ data_points, groups }: DataDisplayProps) {
             context.fillRect(0, 0, canvas.width, canvas.height)
             draw_grid(canvas, context, offset)
             draw_data_points(context, offset, data_points, groups)
-            draw_groups(context, offset, groups)
+            draw_groups(context, offset, data_points, groups)
             draw_axes(canvas, context, offset)
         })
     }, [offset, data_points, groups])
