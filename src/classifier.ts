@@ -5,8 +5,8 @@ export function classify(data_points: DataPoint[], groups: DataPoint[]): DataPoi
     const new_groups: DataPoint[] = []
     for (const cluster of clusters) {
         new_groups.push({
-            x: cluster.map(({ x }) => x).reduce((x, a) => x + a) / cluster.length,
-            y: cluster.map(({ y }) => y).reduce((x, a) => x + a) / cluster.length,
+            x: cluster.map(({ x }) => x).reduce((x, a) => x + a, 0) / cluster.length,
+            y: cluster.map(({ y }) => y).reduce((x, a) => x + a, 0) / cluster.length,
         })
     }
 

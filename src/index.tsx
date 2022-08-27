@@ -24,7 +24,11 @@ function Body() {
 
     return (
         <Splitter>
-            <Settings data_points={ data_points } set_data_points={ set_data_points } />
+            <Settings
+                data_points={ data_points }
+                groups={ groups }
+                set_data_points={ set_data_points }
+                set_groups={ set_groups } />
             <DataDisplay data_points={ data_points } groups={ groups } />
         </Splitter>
     )

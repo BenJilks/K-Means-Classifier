@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import {DataPoint} from '../..'
+import { DataPoint } from '../..'
+import { classify } from '../../classifier'
 import styles from './index.module.css'
 
 const random_decimal_places = 3
@@ -32,10 +33,15 @@ function DataPointComponent({ key, data_point, set_point }: DataPointProps) {
 
 type SettingsProps = {
     data_points: DataPoint[],
+    groups: DataPoint[],
     set_data_points: React.Dispatch<React.SetStateAction<DataPoint[]>>,
+    set_groups: React.Dispatch<React.SetStateAction<DataPoint[]>>,
 }
 
-export default function Settings({ data_points, set_data_points }: SettingsProps) {
+export default function Settings({ data_points,
+                                   groups,
+                                   set_data_points,
+                                   set_groups }: SettingsProps) {
     const [data_point_components, set_data_point_components] = useState([] as JSX.Element[])
 
     useEffect(() => {
@@ -81,12 +87,17 @@ export default function Settings({ data_points, set_data_points }: SettingsProps
         set_data_points(new_points)
     }
 
+    const on_iterate = () => {
+        set_groups(classify(data_points, groups))
+    }
+
     return (
         <div className={ styles.settings }>
             <h1>Data Points</h1>
             <ul className={ styles.data_point_list }>{ data_point_components }</ul>
             <button onClick={ on_add_data_point }>Add Data Point</button>
             <button onClick={ on_randomize_data }>Randomize Data</button>
+            <button onClick={ on_iterate }>Iterate</button>
         </div>
     )
 }
