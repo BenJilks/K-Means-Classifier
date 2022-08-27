@@ -146,17 +146,23 @@ export default function DataDisplay({ data_points, groups }: DataDisplayProps) {
         }
 
         const context = canvas.getContext('2d')!
-        requestAnimationFrame(() => {
-            canvas.width = canvas.getBoundingClientRect().width
-            canvas.height = canvas.getBoundingClientRect().height
-
+        const draw = () => {
             context.fillStyle = '#FFF'
             context.fillRect(0, 0, canvas.width, canvas.height)
             draw_grid(canvas, context, offset)
             draw_data_points(context, offset, data_points, groups)
             draw_groups(context, offset, data_points, groups)
             draw_axes(canvas, context, offset)
-        })
+        }
+
+        const handleResize = () => {
+            canvas.width = canvas.getBoundingClientRect().width
+            canvas.height = canvas.getBoundingClientRect().height
+            requestAnimationFrame(() => draw())
+        };
+
+        handleResize()
+        window.addEventListener("resize", handleResize)
     }, [offset, data_points, groups])
 
     const on_mouse_down = () => set_is_mouse_down(true)
