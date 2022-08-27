@@ -35,6 +35,9 @@ function Body() {
     const [data_points, set_data_points] = useState(
         generate_random_points(default_point_count))
 
+    const [selected_point, set_selected_point] = useState(
+        undefined as number | undefined)
+
     const [groups, set_groups] = useState(
         new Array(default_group_count).fill(null).map((_, index) => {
             return {
@@ -48,9 +51,17 @@ function Body() {
             <Settings
                 data_points={ data_points }
                 groups={ groups }
+                selected_point={ selected_point }
                 set_data_points={ set_data_points }
-                set_groups={ set_groups } />
-            <DataDisplay data_points={ data_points } groups={ groups } />
+                set_groups={ set_groups }
+                set_selected_point={ set_selected_point } />
+
+            <DataDisplay
+                data_points={ data_points }
+                selected_point={ selected_point }
+                groups={ groups }
+                set_selected_point={ set_selected_point }
+                set_data_points={ set_data_points } />
         </Splitter>
     )
 }

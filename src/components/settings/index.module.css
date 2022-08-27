@@ -28,18 +28,22 @@
     overflow-y: scroll;
 }
 
-.data_point {
+.data_point, .data_point_selected {
     display: flex;
-    margin: 0.5em 0.5em 0.5em 0em;
+    padding: 0.5em 0.5em 0.5em 0em;
     width: 12em;
 }
 
-.data_point input {
+.data_point_selected {
+    outline: 1px solid #230FAA;
+}
+
+.data_point input, .data_point_selected input {
     flex-grow: 1;
     width: 0px;
 }
 
-.data_point label {
+.data_point label, .data_point_selected label {
     margin: 0em 0.5em;
 }
 
