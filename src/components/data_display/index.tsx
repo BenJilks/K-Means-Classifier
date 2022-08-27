@@ -68,9 +68,7 @@ function draw_axes(canvas: HTMLCanvasElement,
 
 function draw_data_points(context: CanvasRenderingContext2D,
                           offset: { x: number, y: number },
-                          data_points: DataPoint[],
-                          groups: DataPoint[]) {
-    const clusters = group_data_points(data_points, groups)
+                          clusters: DataPoint[][]) {
     for (let i = 0; i < clusters.length; i++) {
         for (const point of clusters[i]) {
             const [x, y] = [
@@ -88,9 +86,8 @@ function draw_data_points(context: CanvasRenderingContext2D,
 
 function draw_groups(context: CanvasRenderingContext2D,
                      offset: { x: number, y: number },
-                     data_points: DataPoint[],
-                     groups: DataPoint[]) {
-    const new_groups = classify(data_points, groups)
+                     groups: DataPoint[],
+                     new_groups: DataPoint[]) {
     for (let i = 0; i < groups.length; i++) {
         const group = groups[i]
         const new_group = new_groups[i]
@@ -128,30 +125,51 @@ type DataDisplayProps = {
     groups: DataPoint[],
 }
 
+type ClusterInfo = {
+    clusters: DataPoint[][],
+    groups: DataPoint[],
+    new_groups: DataPoint[],
+}
+
+function compute_cluster_info(data_points: DataPoint[], groups: DataPoint[]): ClusterInfo {
+    const clusters = group_data_points(data_points, groups)
+    const new_groups = classify(data_points, groups)
+    return {
+        clusters,
+        groups,
+        new_groups,
+    }
+}
+
 export default function DataDisplay({ data_points, groups }: DataDisplayProps) {
     const canvas_ref = useRef(document.createElement('canvas'))
-    const [offset, set_offset] = useState({ x: NaN, y: NaN })
-    const [is_mouse_down, set_is_mouse_down] = useState(false)
 
     useEffect(() => {
         const canvas = canvas_ref.current
-        if (isNaN(offset.x) && isNaN(offset.y)) {
-            const bounding_rect = canvas.getBoundingClientRect()
-            set_offset({
-                x: bounding_rect.width / 2,
-                y: bounding_rect.height / 2,
-            })
+        const bounding_rect = canvas.getBoundingClientRect()
+        set_offset({
+            x: bounding_rect.width / 2,
+            y: bounding_rect.height / 2,
+        })
+    }, [])
 
-            return
-        }
+    const [cluster_info, set_cluster_info] = useState(compute_cluster_info(data_points, groups))
+    useEffect(() => {
+        console.log('Recompute clusters')
+        set_cluster_info(compute_cluster_info(data_points, groups))
+    }, [data_points, groups])
 
+    const [offset, set_offset] = useState({ x: NaN, y: NaN })
+    const [is_mouse_down, set_is_mouse_down] = useState(false)
+    useEffect(() => {
+        const canvas = canvas_ref.current
         const context = canvas.getContext('2d')!
         const draw = () => {
             context.fillStyle = '#FFF'
             context.fillRect(0, 0, canvas.width, canvas.height)
             draw_grid(canvas, context, offset)
-            draw_data_points(context, offset, data_points, groups)
-            draw_groups(context, offset, data_points, groups)
+            draw_data_points(context, offset, cluster_info.clusters)
+            draw_groups(context, offset, groups, cluster_info.new_groups)
             draw_axes(canvas, context, offset)
         }
 
@@ -163,7 +181,7 @@ export default function DataDisplay({ data_points, groups }: DataDisplayProps) {
 
         handleResize()
         window.addEventListener("resize", handleResize)
-    }, [offset, data_points, groups])
+    })
 
     const on_mouse_down = () => set_is_mouse_down(true)
     const on_mouse_up = () => set_is_mouse_down(false)
