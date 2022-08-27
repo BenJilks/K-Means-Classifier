@@ -1,10 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { DataPoint } from '../..'
+import { DataPoint, generate_random_points } from '../..'
 import { classify } from '../../classifier'
 import styles from './index.module.css'
-
-const random_decimal_places = 3
-const random_scale = 6
 
 type DataPointProps = {
     key: string,
@@ -70,21 +67,7 @@ export default function Settings({ data_points,
     }
 
     const on_randomize_data = () => {
-        const decimal_places = 10 ** random_decimal_places
-        const round = (x: number) =>
-            Math.round(x * decimal_places) / decimal_places
-
-        const new_points = new Array(data_points.length)
-        for (let i = 0; i < data_points.length; i++) {
-            const rotation = Math.random() * Math.PI * 2
-            const radius = Math.random() * random_scale
-            new_points[i] = {
-                x: round(Math.sin(rotation) * radius),
-                y: round(Math.cos(rotation) * radius),
-            }
-        }
-        
-        set_data_points(new_points)
+        set_data_points(generate_random_points(data_points.length))
     }
 
     const on_iterate = () => {
