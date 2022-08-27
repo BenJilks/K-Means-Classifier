@@ -76,10 +76,9 @@ export default function Settings({ data_points,
 
     return (
         <div className={ styles.settings }>
-            <h1>Data Points</h1>
-            <ul className={ styles.data_point_list }>{ data_point_components }</ul>
-            <button onClick={ on_add_data_point }>Add Data Point</button>
             <button onClick={ on_randomize_data }>Randomize Data</button>
+            <button onClick={ on_add_data_point }>Add Data Point</button>
+            <ul className={ styles.data_point_list }>{ data_point_components }</ul>
             <button onClick={ on_iterate }>Iterate</button>
         </div>
     )
