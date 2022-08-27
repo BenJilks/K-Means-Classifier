@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2022, Ben Jilks <benjyjilks@gmail.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
 import { DataPoint, distance_squared } from './data_point'
 
 export function classify(data_points: DataPoint[], groups: DataPoint[]): DataPoint[] {

@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2022, Ben Jilks <benjyjilks@gmail.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
 import React, { useEffect, useState } from 'react'
 import { DataPoint, generate_random_points } from '../../data_point'
 import { classify } from '../../classifier'

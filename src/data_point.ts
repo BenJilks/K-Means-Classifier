@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2022, Ben Jilks <benjyjilks@gmail.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
 
 const random_decimal_places = 3
 const random_scale = 6
