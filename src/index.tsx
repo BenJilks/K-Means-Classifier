@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { generate_random_points } from './data_point'
 import ReactDOM from 'react-dom/client'
 import Settings from './components/settings'
 import Splitter from './components/splitter'
@@ -7,29 +8,6 @@ import './index.css'
 
 const default_point_count = 30
 const default_group_count = 3
-
-const random_decimal_places = 3
-const random_scale = 6
-
-export type DataPoint = { x: number, y: number }
-
-export function generate_random_points(count: number): DataPoint[] {
-    const decimal_places = 10 ** random_decimal_places
-    const round = (x: number) =>
-        Math.round(x * decimal_places) / decimal_places
-
-    const new_points = new Array(count)
-    for (let i = 0; i < count; i++) {
-        const rotation = Math.random() * Math.PI * 2
-        const radius = Math.random() * random_scale
-        new_points[i] = {
-            x: round(Math.sin(rotation) * radius),
-            y: round(Math.cos(rotation) * radius),
-        }
-    }
-
-    return new_points
-}
 
 function Body() {
     const [data_points, set_data_points] = useState(

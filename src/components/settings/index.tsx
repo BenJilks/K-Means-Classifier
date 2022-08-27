@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { DataPoint, generate_random_points } from '../..'
+import { DataPoint, generate_random_points } from '../../data_point'
 import { classify } from '../../classifier'
 import styles from './index.module.css'
 

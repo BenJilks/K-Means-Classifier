@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { DataPoint } from '../..'
+import { DataPoint } from '../../data_point'
 import { classify, group_data_points } from '../../classifier'
 import styles from './index.module.css'
 

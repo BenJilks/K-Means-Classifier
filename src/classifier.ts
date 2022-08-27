@@ -1,4 +1,4 @@
-import { DataPoint } from '.'
+import { DataPoint, distance_squared } from './data_point'
 
 export function classify(data_points: DataPoint[], groups: DataPoint[]): DataPoint[] {
     const clusters = group_data_points(data_points, groups)
@@ -11,12 +11,6 @@ export function classify(data_points: DataPoint[], groups: DataPoint[]): DataPoi
     }
 
     return new_groups
-}
-
-function distance_squared(point_a: DataPoint, point_b: DataPoint): number {
-    const a = point_b.x - point_a.x
-    const b = point_b.y - point_a.y
-    return a*a + b*b
 }
 
 export function group_data_points(data_points: DataPoint[], groups: DataPoint[]): [DataPoint, number][][] {
