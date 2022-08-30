@@ -28,6 +28,7 @@ const grid_shader_source = {
 
         uniform vec2 view_size;
         uniform vec2 offset;
+        uniform float zoom;
         varying vec2 v_position;
 
         const vec3 background_color = vec3(1.0);
@@ -35,10 +36,13 @@ const grid_shader_source = {
         const vec3 axis_color = vec3(${ grid_scale_color }.0);
 
         void main() {
-            vec2 grid_position = (v_position / 2.0 - 0.5) * view_size + offset;
+            vec2 grid_position = (v_position / 2.0 - 0.5) * view_size * zoom + offset;
             vec3 color = background_color;
 
-            if (mod(grid_position.x, ${ grid_size_px }.0) < 2.0 || mod(grid_position.y, ${ grid_size_px }.0) < 2.0) {
+            float scale = clamp(floor(zoom), 1.0, 4.0);
+            float grid_size = ${ grid_size_px }.0 * scale;
+            float width = 2.0 * scale;
+            if (mod(grid_position.x, grid_size) < width || mod(grid_position.y, grid_size) < width) {
                 color = grid_color;
             }
             if (abs(grid_position.x) < ${ grid_scale_width / 2 }.0 || abs(grid_position.y) < ${ grid_scale_width / 2 }.0) {

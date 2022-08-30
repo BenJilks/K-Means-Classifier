@@ -33,6 +33,7 @@ type Shader = {
     projection: WebGLUniformLocation | null,
     view_size: WebGLUniformLocation | null,
     offset: WebGLUniformLocation | null,
+    zoom: WebGLUniformLocation | null,
 
     point_position: WebGLUniformLocation | null,
     point_color: WebGLUniformLocation | null,
@@ -101,6 +102,7 @@ function load_shader_program(gl: WebGLRenderingContext, source: ShaderSource): S
         projection: gl.getUniformLocation(program, 'projection'),
         view_size: gl.getUniformLocation(program, 'view_size'),
         offset: gl.getUniformLocation(program, 'offset'),
+        zoom: gl.getUniformLocation(program, 'zoom'),
 
         point_position: gl.getUniformLocation(program, 'point_position'),
         point_color: gl.getUniformLocation(program, 'point_color'),
@@ -161,15 +163,17 @@ export function resize_webgl(gl: WebGLRenderingContext, width: number, height: n
 
 function bind_shader(gl: WebGLRenderingContext,
                      shader: Shader,
-                     offset: { x: number, y: number }) {
+                     offset: { x: number, y: number },
+                     zoom: number) {
     const width = gl.canvas.width
     const height = gl.canvas.height
-    const projection_matrix = mat4.ortho(mat4.create(), 0, width, height, 0, -1, 1)
+    const projection_matrix = mat4.ortho(mat4.create(), 0, width * zoom, height * zoom, 0, -1, 1)
 
     gl.useProgram(shader.program)
     gl.uniformMatrix4fv(shader.projection, false, projection_matrix)
     gl.uniform2f(shader.view_size, width, height)
     gl.uniform2f(shader.offset, Math.round(offset.x), Math.round(offset.y))
+    gl.uniform1f(shader.zoom, zoom)
 }
 
 function draw_buffer(gl: WebGLRenderingContext, shader: Shader, buffer: WebGLBuffer) {
@@ -184,8 +188,9 @@ function draw_buffer(gl: WebGLRenderingContext, shader: Shader, buffer: WebGLBuf
 function draw_grid(gl: WebGLRenderingContext,
                    grid_shader: Shader,
                    quad: WebGLBuffer,
-                   offset: { x: number, y: number }) {
-    bind_shader(gl, grid_shader, offset)
+                   offset: { x: number, y: number },
+                   zoom: number) {
+    bind_shader(gl, grid_shader, offset, zoom)
     draw_buffer(gl, grid_shader, quad)
 }
 
@@ -193,8 +198,9 @@ function draw_data_points(gl: WebGLRenderingContext,
                           point_shader: Shader,
                           quad: WebGLBuffer,
                           offset: { x: number, y: number },
+                          zoom: number,
                           cluster_info: ClusterInfo) {
-    bind_shader(gl, point_shader, offset)
+    bind_shader(gl, point_shader, offset, zoom)
 
     for (let i = 0; i < cluster_info.clusters.length; i++) {
         const cluster = cluster_info.clusters[i]
@@ -211,8 +217,9 @@ function draw_groups(gl: WebGLRenderingContext,
                      ring_shader: Shader,
                      quad: WebGLBuffer,
                      offset: { x: number, y: number },
+                     zoom: number,
                      cluster_info: ClusterInfo) {
-    bind_shader(gl, ring_shader, offset)
+    bind_shader(gl, ring_shader, offset, zoom)
 
     const draw_group = (index: number, group: DataPoint, alpha: number) => {
         const color = group_colors[index]
@@ -240,8 +247,9 @@ function draw_new_group_lines(gl: WebGLRenderingContext,
                               line_shader: Shader,
                               quad: WebGLBuffer,
                               offset: { x: number, y: number },
+                              zoom: number,
                               cluster_info: ClusterInfo) {
-    bind_shader(gl, line_shader, offset)
+    bind_shader(gl, line_shader, offset, zoom)
 
     gl.uniform1f(line_shader.ring_gap_size, 10)
     for (let i = 0; i < cluster_info.groups.length; i++) {
@@ -288,6 +296,7 @@ function draw_selected_point(gl: WebGLRenderingContext,
                              ring_shader: Shader,
                              quad: WebGLBuffer,
                              offset: { x: number, y: number },
+                             zoom: number,
                              cluster_info: ClusterInfo,
                              selected_point: number | undefined) {
     const selected = find_selected_point(cluster_info, selected_point)
@@ -295,7 +304,7 @@ function draw_selected_point(gl: WebGLRenderingContext,
         return
     }
 
-    bind_shader(gl, ring_shader, offset)
+    bind_shader(gl, ring_shader, offset, zoom)
 
     gl.uniform1f(ring_shader.ring_width, 0.1)
     gl.uniform1f(ring_shader.ring_radius, point_radius * 1.5)
@@ -308,15 +317,16 @@ function draw_selected_point(gl: WebGLRenderingContext,
 export function draw_webgl(gl: WebGLRenderingContext,
                            { grid_shader, point_shader, ring_shader, line_shader, quad }: DisplayContext,
                            offset: { x: number, y: number },
+                           zoom: number,
                            cluster_info: ClusterInfo,
                            selected_point: number | undefined) {
     gl.clearColor(0.0, 0.0, 0.0, 1.0)
     gl.clear(gl.COLOR_BUFFER_BIT)
 
-    draw_grid(gl, grid_shader, quad, offset)
-    draw_data_points(gl, point_shader, quad, offset, cluster_info)
-    draw_new_group_lines(gl, line_shader, quad, offset, cluster_info)
-    draw_groups(gl, ring_shader, quad, offset, cluster_info)
-    draw_selected_point(gl, ring_shader, quad, offset, cluster_info, selected_point)
+    draw_grid(gl, grid_shader, quad, offset, zoom)
+    draw_data_points(gl, point_shader, quad, offset, zoom, cluster_info)
+    draw_new_group_lines(gl, line_shader, quad, offset, zoom, cluster_info)
+    draw_groups(gl, ring_shader, quad, offset, zoom, cluster_info)
+    draw_selected_point(gl, ring_shader, quad, offset, zoom, cluster_info, selected_point)
 }
 

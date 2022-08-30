@@ -11,8 +11,8 @@ export function classify(data_points: DataPoint[], groups: DataPoint[]): DataPoi
     const new_groups: DataPoint[] = []
     for (const cluster of clusters) {
         new_groups.push({
-            x: cluster.map(([{ x }, _]) => x).reduce((x, a) => x + a, 0) / cluster.length,
-            y: cluster.map(([{ y }, _]) => y).reduce((x, a) => x + a, 0) / cluster.length,
+            x: cluster.map(([{ x }]) => x).reduce((x, a) => x + a, 0) / cluster.length,
+            y: cluster.map(([{ y }]) => y).reduce((x, a) => x + a, 0) / cluster.length,
         })
     }
 
@@ -26,6 +26,10 @@ export function group_data_points(data_points: DataPoint[], groups: DataPoint[])
 
     for (let i = 0; i < data_points.length; i++) {
         const point = data_points[i]
+        if (point === undefined) {
+            continue
+        }
+
         let min_distance_squared = Infinity
         let min_group_index = -1
         for (let i = 0; i < groups.length; i++) {

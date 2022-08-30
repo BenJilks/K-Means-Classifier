@@ -17,12 +17,13 @@ function distance_squared(p1: { x: number, y: number },
 
 export function find_point_under_cursor(data_points: DataPoint[],
                                         offset: { x: number, y: number },
+                                        zoom: number,
                                         cursor: { x: number, y: number }): number | undefined {
     for (let index = 0; index < data_points.length; index++) {
         const point = data_points[index]
         const point_in_view = {
-            x: point.x * grid_size_px + offset.x,
-            y: point.y * grid_size_px + offset.y,
+            x: (point.x * grid_size_px + offset.x) / zoom,
+            y: (point.y * grid_size_px + offset.y) / zoom,
         }
 
         const distance = distance_squared(point_in_view, cursor)
