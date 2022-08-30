@@ -7,7 +7,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { DataPoint } from '../../data_point'
 import { classify, group_data_points } from '../../classifier'
-import { draw, grid_size_px } from './draw'
+import { DisplayContext, draw_webgl, init_webgl, resize_webgl } from './draw'
+import { grid_size_px } from './shaders/grid'
 import { find_point_under_cursor } from './input'
 import styles from './index.module.css'
 
@@ -43,6 +44,8 @@ export default function DataDisplay({ data_points,
                                       set_selected_point,
                                       set_data_points }: DataDisplayProps) {
     const canvas_ref = useRef(document.createElement('canvas'))
+    const rendering_context = useRef(null as DisplayContext | null)
+
     useEffect(() => {
         const canvas = canvas_ref.current
         const bounding_rect = canvas.getBoundingClientRect()
@@ -60,13 +63,17 @@ export default function DataDisplay({ data_points,
     const [offset, set_offset] = useState({ x: NaN, y: NaN })
     useEffect(() => {
         const canvas = canvas_ref.current
-        const context = canvas.getContext('2d')!
+        const gl = canvas.getContext('webgl')!
 
         const handleResize = () => {
             canvas.width = canvas.getBoundingClientRect().width
             canvas.height = canvas.getBoundingClientRect().height
+            resize_webgl(gl, canvas.width, canvas.height)
+
             requestAnimationFrame(() => {
-                draw(context, canvas, offset, selected_point, cluster_info)
+                if (rendering_context.current == null)
+                    rendering_context.current = init_webgl(gl)
+                draw_webgl(gl, rendering_context.current!, offset, cluster_info, selected_point)
             })
         }
 

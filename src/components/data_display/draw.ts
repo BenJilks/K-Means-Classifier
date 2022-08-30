@@ -1,143 +1,322 @@
+/*
+ * Copyright (c) 2022, Ben Jilks <benjyjilks@gmail.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+import { mat4, vec2, vec3 } from 'gl-matrix'
 import { ClusterInfo } from '.'
 import { DataPoint } from '../../data_point'
+import grid_shader_source, { grid_size_px } from './shaders/grid'
+import point_shader_source, { point_radius } from './shaders/point'
+import ring_shader_source from './shaders/ring'
+import line_shader_source from './shaders/line'
 
-export const grid_size_px = 100
-export const point_radius = 10
-const grid_color = '#999'
-
-const grid_scale_width = 4
-const grid_scale_color = '#000'
-const selection_color = '#230FAA'
-
+const selection_color = [0.14, 0.06, 0.67, 1.0]
+const new_group_alpha = 0.8
 const group_radius = 25
 const group_colors = [
-    '#F55',
-    '#5F5',
-    '#55F',
+    [1.0, 0.33, 0.33, 1.0],
+    [0.33, 1.0, 0.33, 1.0],
+    [0.33, 0.33, 1.0, 1.0],
 ]
 
-function draw_grid(canvas: HTMLCanvasElement,
-                   context: CanvasRenderingContext2D,
+type ShaderSource = {
+    vertex: string,
+    fragment: string,
+}
+
+type Shader = {
+    program: WebGLProgram,
+    position: number,
+
+    projection: WebGLUniformLocation | null,
+    view_size: WebGLUniformLocation | null,
+    offset: WebGLUniformLocation | null,
+
+    point_position: WebGLUniformLocation | null,
+    point_color: WebGLUniformLocation | null,
+
+    ring_width: WebGLUniformLocation | null,
+    ring_radius: WebGLUniformLocation | null,
+    ring_gap_size: WebGLUniformLocation | null,
+
+    line_transform: WebGLUniformLocation | null,
+    line_length: WebGLUniformLocation | null,
+}
+
+export type DisplayContext = {
+    grid_shader: Shader,
+    point_shader: Shader,
+    ring_shader: Shader,
+    line_shader: Shader,
+    quad: WebGLBuffer,
+}
+
+function load_shader(gl: WebGLRenderingContext, type: number, source: string): WebGLShader | null {
+    const shader = gl.createShader(type)
+    if (shader == null)
+        return null
+
+    gl.shaderSource(shader, source)
+    gl.compileShader(shader)
+
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.log(
+            `Error compiling shader: ` +
+            `'${ gl.getShaderInfoLog(shader) }'`)
+        gl.deleteShader(shader)
+        return null
+    }
+
+    return shader
+}
+
+function load_shader_program(gl: WebGLRenderingContext, source: ShaderSource): Shader | null {
+    const vertex_shader = load_shader(gl, gl.VERTEX_SHADER, source.vertex)
+    const fragment_shader = load_shader(gl, gl.FRAGMENT_SHADER, source.fragment)
+    if (vertex_shader == null || fragment_shader == null)
+        return null
+
+    const program = gl.createProgram()
+    if (program == null)
+        return null
+    
+    gl.attachShader(program, vertex_shader)
+    gl.attachShader(program, fragment_shader)
+    gl.linkProgram(program)
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.log(
+            `Error linking shaders: ` +
+            `'${ gl.getShaderInfoLog(program) }'`)
+        return null
+    }
+
+    const position = gl.getAttribLocation(program, 'position')
+    return {
+        program,
+        position,
+
+        projection: gl.getUniformLocation(program, 'projection'),
+        view_size: gl.getUniformLocation(program, 'view_size'),
+        offset: gl.getUniformLocation(program, 'offset'),
+
+        point_position: gl.getUniformLocation(program, 'point_position'),
+        point_color: gl.getUniformLocation(program, 'point_color'),
+
+        ring_width: gl.getUniformLocation(program, 'ring_width'),
+        ring_radius: gl.getUniformLocation(program, 'ring_radius'),
+        ring_gap_size: gl.getUniformLocation(program, 'ring_gap_size'),
+
+        line_transform: gl.getUniformLocation(program, 'line_transform'),
+        line_length: gl.getUniformLocation(program, 'line_length'),
+    }
+}
+
+function create_quad(gl: WebGLRenderingContext): WebGLBuffer | null {
+    const quad_positions = [
+        1.0, 1.0,
+        -1.0, 1.0,
+        1.0, -1.0,
+        -1.0, -1.0,
+    ]
+
+    const position_buffer = gl.createBuffer()
+    if (position_buffer == null)
+        return null
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, position_buffer)
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(quad_positions), gl.STATIC_DRAW)
+    return position_buffer
+}
+
+export function init_webgl(gl: WebGLRenderingContext): DisplayContext | null {
+    const grid_shader = load_shader_program(gl, grid_shader_source)
+    const point_shader = load_shader_program(gl, point_shader_source)
+    const ring_shader = load_shader_program(gl, ring_shader_source)
+    const line_shader = load_shader_program(gl, line_shader_source)
+    if (grid_shader == null || point_shader == null || ring_shader == null || line_shader == null)
+        return null
+
+    const quad = create_quad(gl)
+    if (quad == null)
+        return null
+
+    gl.enable(gl.BLEND)
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+
+    return {
+        grid_shader,
+        point_shader,
+        ring_shader,
+        line_shader,
+        quad,
+    }
+}
+
+export function resize_webgl(gl: WebGLRenderingContext, width: number, height: number) {
+    gl.viewport(0, 0, width, height)
+}
+
+function bind_shader(gl: WebGLRenderingContext,
+                     shader: Shader,
+                     offset: { x: number, y: number }) {
+    const width = gl.canvas.width
+    const height = gl.canvas.height
+    const projection_matrix = mat4.ortho(mat4.create(), 0, width, height, 0, -1, 1)
+
+    gl.useProgram(shader.program)
+    gl.uniformMatrix4fv(shader.projection, false, projection_matrix)
+    gl.uniform2f(shader.view_size, width, height)
+    gl.uniform2f(shader.offset, Math.round(offset.x), Math.round(offset.y))
+}
+
+function draw_buffer(gl: WebGLRenderingContext, shader: Shader, buffer: WebGLBuffer) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+
+    gl.vertexAttribPointer(shader.position, 2, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray(shader.position)
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+}
+
+function draw_grid(gl: WebGLRenderingContext,
+                   grid_shader: Shader,
+                   quad: WebGLBuffer,
                    offset: { x: number, y: number }) {
-    // TODO: Replace this with just drawing textures,
-    //       to improve performance.
-
-    context.beginPath()
-    context.strokeStyle = grid_color
-    context.lineWidth = 1
-    context.setLineDash([])
-
-    const pixel_offset_x = offset.x % grid_size_px
-    for (let x = 0; x < (canvas.width / grid_size_px) + 1; x++) {
-        context.moveTo(x * grid_size_px + pixel_offset_x, 0)
-        context.lineTo(x * grid_size_px + pixel_offset_x, canvas.height)
-    }
-
-    const pixel_offset_y = offset.y % grid_size_px
-    for (let y = 0; y < (canvas.height / grid_size_px) + 1; y++) {
-        context.moveTo(0, y * grid_size_px + pixel_offset_y)
-        context.lineTo(canvas.width, y * grid_size_px + pixel_offset_y)
-    }
-
-    context.stroke()
+    bind_shader(gl, grid_shader, offset)
+    draw_buffer(gl, grid_shader, quad)
 }
 
-function draw_axes(canvas: HTMLCanvasElement,
-                    context: CanvasRenderingContext2D,
-                    offset: { x: number, y: number }) {
-    context.beginPath()
-    context.strokeStyle = grid_scale_color
-    context.lineWidth = grid_scale_width
-    context.setLineDash([])
-
-    if (offset.x >= -grid_scale_width && offset.x < canvas.width + grid_scale_width) {
-        const pixel_offset_x = offset.x
-        context.moveTo(pixel_offset_x, 0)
-        context.lineTo(pixel_offset_x, canvas.height)
-    }
-
-    if (offset.y >= -grid_scale_width && offset.y < canvas.height + grid_scale_width) {
-        const pixel_offset_y = offset.y
-        context.moveTo(0, pixel_offset_y)
-        context.lineTo(canvas.width, pixel_offset_y)
-    }
-
-    context.stroke()
-}
-
-function draw_data_points(context: CanvasRenderingContext2D,
+function draw_data_points(gl: WebGLRenderingContext,
+                          point_shader: Shader,
+                          quad: WebGLBuffer,
                           offset: { x: number, y: number },
-                          selected_point: number | undefined,
-                          clusters: [DataPoint, number][][]) {
-    for (let i = 0; i < clusters.length; i++) {
-        for (const [point, index] of clusters[i]) {
-            const [x, y] = [
-                point.x * grid_size_px + offset.x,
-                point.y * grid_size_px + offset.y,
-            ]
+                          cluster_info: ClusterInfo) {
+    bind_shader(gl, point_shader, offset)
 
-            context.beginPath()
-            context.fillStyle = group_colors[i % group_colors.length]
-            context.arc(x, y, point_radius, 0, Math.PI * 2)
-            context.fill()
+    for (let i = 0; i < cluster_info.clusters.length; i++) {
+        const cluster = cluster_info.clusters[i]
+        gl.uniform4fv(point_shader.point_color, group_colors[i])
 
-            if (selected_point === index) {
-                context.beginPath()
-                context.strokeStyle = selection_color
-                context.arc(x, y, point_radius + 10, 0, Math.PI * 2)
-                context.stroke()
-            }
+        for (const [point] of cluster) {
+            gl.uniform2f(point_shader.point_position, point.x * grid_size_px, point.y * grid_size_px)
+            draw_buffer(gl, point_shader, quad)
         }
     }
 }
 
-function draw_groups(context: CanvasRenderingContext2D,
+function draw_groups(gl: WebGLRenderingContext,
+                     ring_shader: Shader,
+                     quad: WebGLBuffer,
                      offset: { x: number, y: number },
-                     groups: DataPoint[],
-                     new_groups: DataPoint[]) {
-    for (let i = 0; i < groups.length; i++) {
-        const group = groups[i]
-        const new_group = new_groups[i]
-        const [x, y] = [
-            group.x * grid_size_px + offset.x,
-            group.y * grid_size_px + offset.y,
-        ]
+                     cluster_info: ClusterInfo) {
+    bind_shader(gl, ring_shader, offset)
 
-        context.beginPath()
-        context.strokeStyle = group_colors[i % group_colors.length]
-        context.lineWidth = 5
-        context.setLineDash([11, 6.2])
-        context.arc(x, y, group_radius, 0, Math.PI * 2)
-        context.stroke()
+    const draw_group = (index: number, group: DataPoint, alpha: number) => {
+        const color = group_colors[index]
+        gl.uniform4fv(ring_shader.point_color, [color[0], color[1], color[2], alpha])
+        gl.uniform2f(ring_shader.point_position, group.x * grid_size_px, group.y * grid_size_px)
+        draw_buffer(gl, ring_shader, quad)
+    }
 
-        const [new_x, new_y] = [
-            new_group.x * grid_size_px + offset.x,
-            new_group.y * grid_size_px + offset.y,
-        ]
-        context.beginPath()
-        context.lineWidth = 3
-        context.setLineDash([11/2, 6.2])
-        context.arc(new_x, new_y, group_radius * 0.8, 0, Math.PI * 2)
-        context.stroke()
+    gl.uniform1f(ring_shader.ring_width, 0.3)
+    gl.uniform1f(ring_shader.ring_radius, group_radius)
+    gl.uniform1f(ring_shader.ring_gap_size, Math.PI * 0.25)
+    for (let i = 0; i < cluster_info.groups.length; i++) {
+        draw_group(i, cluster_info.groups[i], 1.0)
+    }
 
-        context.beginPath()
-        context.moveTo(x, y)
-        context.lineTo(new_x, new_y)
-        context.stroke()
+    gl.uniform1f(ring_shader.ring_width, 0.2)
+    gl.uniform1f(ring_shader.ring_radius, group_radius * 0.8)
+    gl.uniform1f(ring_shader.ring_gap_size, Math.PI * 0.2)
+    for (let i = 0; i < cluster_info.new_groups.length; i++) {
+        draw_group(i, cluster_info.new_groups[i], new_group_alpha)
     }
 }
 
-export function draw(context: CanvasRenderingContext2D,
-                     canvas: HTMLCanvasElement,
-                     offset: { x: number, y: number },
-                     selected_point: number | undefined,
-                     cluster_info: ClusterInfo) {
-    context.fillStyle = '#FFF'
-    context.fillRect(0, 0, canvas.width, canvas.height)
+function draw_new_group_lines(gl: WebGLRenderingContext,
+                              line_shader: Shader,
+                              quad: WebGLBuffer,
+                              offset: { x: number, y: number },
+                              cluster_info: ClusterInfo) {
+    bind_shader(gl, line_shader, offset)
 
-    draw_grid(canvas, context, offset)
-    draw_data_points(context, offset, selected_point, cluster_info.clusters)
-    draw_groups(context, offset, cluster_info.groups, cluster_info.new_groups)
-    draw_axes(canvas, context, offset)
+    gl.uniform1f(line_shader.ring_gap_size, 10)
+    for (let i = 0; i < cluster_info.groups.length; i++) {
+        const start = cluster_info.groups[i]
+        const end = cluster_info.new_groups[i]
+
+        const length = vec2.dist(vec2.fromValues(start.x, start.y), vec2.fromValues(end.x, end.y)) * grid_size_px
+        const angle = Math.atan((end.y - start.y) / (end.x - start.x))
+        const position = vec3.fromValues(
+            ((end.x - start.x) / 2 + start.x) * grid_size_px,
+            ((end.y - start.y) / 2 + start.y) * grid_size_px,
+            0)
+
+        let transform = mat4.identity(mat4.create())
+        mat4.translate(transform, transform, position)
+        mat4.rotateZ(transform, transform, angle)
+        mat4.scale(transform, transform, vec3.fromValues(length / 2, 2, 1))
+
+        const color = group_colors[i]
+        gl.uniform4fv(line_shader.point_color, [color[0], color[1], color[2], new_group_alpha])
+        gl.uniform1f(line_shader.line_length, length)
+        gl.uniformMatrix4fv(line_shader.line_transform, false, transform)
+        draw_buffer(gl, line_shader, quad)
+    }
+}
+
+function find_selected_point(cluster_info: ClusterInfo, selected_point: number | undefined): DataPoint | null {
+    if (selected_point === undefined) {
+        return null
+    }
+
+    for (const cluster of cluster_info.clusters) {
+        for (const [point, i] of cluster) {
+            if (i === selected_point) {
+                return point
+            }
+        }
+    }
+
+    return null
+}
+
+function draw_selected_point(gl: WebGLRenderingContext,
+                             ring_shader: Shader,
+                             quad: WebGLBuffer,
+                             offset: { x: number, y: number },
+                             cluster_info: ClusterInfo,
+                             selected_point: number | undefined) {
+    const selected = find_selected_point(cluster_info, selected_point)
+    if (selected == null) {
+        return
+    }
+
+    bind_shader(gl, ring_shader, offset)
+
+    gl.uniform1f(ring_shader.ring_width, 0.1)
+    gl.uniform1f(ring_shader.ring_radius, point_radius * 1.5)
+    gl.uniform1f(ring_shader.ring_gap_size, 0)
+    gl.uniform2f(ring_shader.point_position, selected.x * grid_size_px, selected.y * grid_size_px)
+    gl.uniform4fv(ring_shader.point_color, selection_color)
+    draw_buffer(gl, ring_shader, quad)
+}
+
+export function draw_webgl(gl: WebGLRenderingContext,
+                           { grid_shader, point_shader, ring_shader, line_shader, quad }: DisplayContext,
+                           offset: { x: number, y: number },
+                           cluster_info: ClusterInfo,
+                           selected_point: number | undefined) {
+    gl.clearColor(0.0, 0.0, 0.0, 1.0)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+
+    draw_grid(gl, grid_shader, quad, offset)
+    draw_data_points(gl, point_shader, quad, offset, cluster_info)
+    draw_new_group_lines(gl, line_shader, quad, offset, cluster_info)
+    draw_groups(gl, ring_shader, quad, offset, cluster_info)
+    draw_selected_point(gl, ring_shader, quad, offset, cluster_info, selected_point)
 }
 

@@ -43,6 +43,7 @@
     ]
   },
   "devDependencies": {
-    "css-loader": "^6.7.1"
+    "css-loader": "^6.7.1",
+    "gl-matrix": "^3.4.3"
   }
 }
