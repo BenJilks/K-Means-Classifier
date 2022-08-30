@@ -255,7 +255,7 @@ function draw_new_group_lines(gl: WebGLRenderingContext,
             ((end.y - start.y) / 2 + start.y) * grid_size_px,
             0)
 
-        let transform = mat4.identity(mat4.create())
+        const transform = mat4.identity(mat4.create())
         mat4.translate(transform, transform, position)
         mat4.rotateZ(transform, transform, angle)
         mat4.scale(transform, transform, vec3.fromValues(length / 2, 2, 1))
