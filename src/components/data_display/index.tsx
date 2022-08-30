@@ -142,7 +142,6 @@ export default function DataDisplay({ data_points,
     const on_wheel = (event: React.WheelEvent) => {
         const delta = event.deltaY / (138.0 * 10.0) * zoom
         const new_zoom = zoom + delta
-        const canvas = canvas_ref.current
 
         const cursor = compute_cursor_position(event)
         set_zoom(new_zoom)
