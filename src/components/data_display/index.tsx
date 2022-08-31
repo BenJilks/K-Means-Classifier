@@ -156,6 +156,9 @@ export default function DataDisplay({ data_set, selected_point, set_data_set, se
     const on_wheel = (event: React.WheelEvent) => {
         const delta = event.deltaY / (138.0 * 10.0) * view_state.zoom
         const new_zoom = view_state.zoom + delta
+        if (new_zoom >= 3.8 || new_zoom <= 0.2) {
+            return
+        }
 
         const cursor = compute_cursor_position(event)
         set_view_state({
