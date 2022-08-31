@@ -10,6 +10,7 @@ import { classify, group_data_points } from '../../classifier'
 import { DisplayContext, draw_webgl, init_webgl, resize_webgl } from './draw'
 import { grid_size_px } from './shaders/grid'
 import { find_point_under_cursor } from './input'
+import { DataSet } from '../../data_point'
 import styles from './index.module.css'
 
 export type ClusterInfo = {
@@ -17,6 +18,11 @@ export type ClusterInfo = {
     clusters: [DataPoint, number][][],
     groups: DataPoint[],
     new_groups: DataPoint[],
+}
+
+export type ViewState = {
+    offset: { x: number, y: number },
+    zoom: number,
 }
 
 function compute_cluster_info(data_points: DataPoint[], groups: DataPoint[]): ClusterInfo {
@@ -31,40 +37,42 @@ function compute_cluster_info(data_points: DataPoint[], groups: DataPoint[]): Cl
 }
 
 type DataDisplayProps = {
-    data_points: DataPoint[],
+    data_set: DataSet,
     selected_point: number | undefined,
-    groups: DataPoint[],
+    set_data_set: React.Dispatch<React.SetStateAction<DataSet>>,
     set_selected_point: React.Dispatch<React.SetStateAction<number | undefined>>,
-    set_data_points: React.Dispatch<React.SetStateAction<DataPoint[]>>,
 }
 
-export default function DataDisplay({ data_points,
-                                      selected_point,
-                                      groups,
-                                      set_selected_point,
-                                      set_data_points }: DataDisplayProps) {
+export default function DataDisplay({ data_set, selected_point, set_data_set, set_selected_point }: DataDisplayProps) {
     const canvas_ref = useRef(document.createElement('canvas'))
     const rendering_context = useRef(null as DisplayContext | null)
 
-    useEffect(() => {
-        const canvas = canvas_ref.current
-        const bounding_rect = canvas.getBoundingClientRect()
-        set_offset({
-            x: bounding_rect.width / 2,
-            y: bounding_rect.height / 2,
-        })
-    }, [])
+    const [cluster_info, set_cluster_info] = useState(compute_cluster_info(data_set.points, data_set.groups))
+    const [view_state, set_view_state] = useState({
+        offset: { x: NaN, y: NaN },
+        zoom: 1,
+    })
 
-    const [cluster_info, set_cluster_info] = useState(compute_cluster_info(data_points, groups))
     useEffect(() => {
-        set_cluster_info(compute_cluster_info(data_points, groups))
-    }, [data_points, groups])
+        set_cluster_info(compute_cluster_info(data_set.points, data_set.groups))
+    }, [data_set])
 
-    const [offset, set_offset] = useState({ x: NaN, y: NaN })
-    const [zoom, set_zoom] = useState(1)
     useEffect(() => {
         const canvas = canvas_ref.current
         const gl = canvas.getContext('webgl')!
+
+        if (isNaN(view_state.offset.x) && isNaN(view_state.offset.y)) {
+            const bounding_rect = canvas.getBoundingClientRect()
+            set_view_state({
+                offset: {
+                    x: bounding_rect.width / 2,
+                    y: bounding_rect.height / 2,
+                },
+                zoom: view_state.zoom,
+            })
+
+            return
+        }
 
         const handleResize = () => {
             canvas.width = canvas.getBoundingClientRect().width
@@ -74,13 +82,13 @@ export default function DataDisplay({ data_points,
             requestAnimationFrame(() => {
                 if (rendering_context.current == null)
                     rendering_context.current = init_webgl(gl)
-                draw_webgl(gl, rendering_context.current!, offset, zoom, cluster_info, selected_point)
+                draw_webgl(gl, rendering_context.current!, view_state, cluster_info, selected_point)
             })
         }
 
         handleResize()
         window.addEventListener("resize", handleResize)
-    }, [cluster_info, offset, zoom, selected_point])
+    }, [view_state, cluster_info, selected_point])
 
     const [is_mouse_down, set_is_mouse_down] = useState(false)
     const [is_dragging_point, set_is_dragging_point] = useState(false)
@@ -95,7 +103,7 @@ export default function DataDisplay({ data_points,
 
     const on_mouse_down = (event: React.MouseEvent) => {
         const cursor = compute_cursor_position(event)
-        const point_under_cursor = find_point_under_cursor(data_points, offset, zoom, cursor)
+        const point_under_cursor = find_point_under_cursor(data_set.points, view_state, cursor)
         if (point_under_cursor !== undefined)
             set_is_dragging_point(true)
         set_selected_point(point_under_cursor)
@@ -113,16 +121,22 @@ export default function DataDisplay({ data_points,
         const canvas = canvas_ref.current
         if (selected_point !== undefined && is_dragging_point) {
             canvas.style.cursor = 'pointer'
-            data_points[selected_point] = {
-                x: (cursor.x * zoom - offset.x) / grid_size_px,
-                y: (cursor.y * zoom - offset.y) / grid_size_px,
+            data_set.points[selected_point] = {
+                x: (cursor.x * view_state.zoom - view_state.offset.x) / grid_size_px,
+                y: (cursor.y * view_state.zoom - view_state.offset.y) / grid_size_px,
             }
 
-            set_data_points(data_points.splice(0))
+            set_data_set({
+                points: data_set.points,
+                groups: data_set.groups,
+            })
         } else {
-            set_offset({
-                x: offset.x + event.movementX * zoom,
-                y: offset.y + event.movementY * zoom,
+            set_view_state({
+                offset: {
+                    x: view_state.offset.x + event.movementX * view_state.zoom,
+                    y: view_state.offset.y + event.movementY * view_state.zoom,
+                },
+                zoom: view_state.zoom,
             })
         }
     }
@@ -134,20 +148,22 @@ export default function DataDisplay({ data_points,
         const cursor = compute_cursor_position(event)
         if (is_mouse_down) {
             on_mouse_drag(event, cursor)
-        } else if (find_point_under_cursor(data_points, offset, zoom, cursor) !== undefined) {
+        } else if (find_point_under_cursor(data_set.points, view_state, cursor) !== undefined) {
             canvas.style.cursor = 'pointer'
         }
     }
 
     const on_wheel = (event: React.WheelEvent) => {
-        const delta = event.deltaY / (138.0 * 10.0) * zoom
-        const new_zoom = zoom + delta
+        const delta = event.deltaY / (138.0 * 10.0) * view_state.zoom
+        const new_zoom = view_state.zoom + delta
 
         const cursor = compute_cursor_position(event)
-        set_zoom(new_zoom)
-        set_offset({
-            x: offset.x + cursor.x * delta,
-            y: offset.y + cursor.y * delta,
+        set_view_state({
+            offset: {
+                x: view_state.offset.x + cursor.x * delta,
+                y: view_state.offset.y + cursor.y * delta,
+            },
+            zoom: new_zoom,
         })
     }
 

@@ -7,6 +7,7 @@
 import { DataPoint } from '../../data_point'
 import { grid_size_px } from './shaders/grid'
 import { point_radius } from './shaders/point'
+import { ViewState } from '.'
 
 function distance_squared(p1: { x: number, y: number },
                           p2: { x: number, y: number }): number {
@@ -16,8 +17,7 @@ function distance_squared(p1: { x: number, y: number },
 }
 
 export function find_point_under_cursor(data_points: DataPoint[],
-                                        offset: { x: number, y: number },
-                                        zoom: number,
+                                        { offset, zoom }: ViewState,
                                         cursor: { x: number, y: number }): number | undefined {
     for (let index = 0; index < data_points.length; index++) {
         const point = data_points[index]

@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useState } from 'react'
-import { DataPoint, generate_random_points } from '../../data_point'
+import { DataPoint, DataSet, generate_random_points } from '../../data_point'
 import { classify } from '../../classifier'
 import styles from './index.module.css'
 
@@ -37,26 +37,25 @@ function DataPointComponent({ key, is_selected, data_point, set_point, on_click 
 }
 
 type SettingsProps = {
-    data_points: DataPoint[],
-    groups: DataPoint[],
+    data_set: DataSet,
     selected_point: number | undefined,
-    set_data_points: React.Dispatch<React.SetStateAction<DataPoint[]>>,
-    set_groups: React.Dispatch<React.SetStateAction<DataPoint[]>>,
+    set_data_set: React.Dispatch<React.SetStateAction<DataSet>>,
     set_selected_point: React.Dispatch<React.SetStateAction<number | undefined>>,
 }
 
-export default function Settings({ data_points,
-                                   groups,
+export default function Settings({ data_set,
                                    selected_point,
-                                   set_data_points,
-                                   set_groups,
+                                   set_data_set,
                                    set_selected_point }: SettingsProps) {
     const [data_point_components, set_data_point_components] = useState([] as JSX.Element[])
 
     useEffect(() => {
         const on_point_set = (key: number, new_point: DataPoint) => {
-            data_points[key] = new_point
-            set_data_points(data_points.splice(0))
+            data_set.points[key] = new_point
+            set_data_set({
+                points: data_set.points,
+                groups: data_set.groups,
+            })
         }
             
         const create_point = (data_point: DataPoint, key: number) => {
@@ -69,23 +68,32 @@ export default function Settings({ data_points,
             })
         }
 
-        const components = data_points.map((data_point, key) => {
+        const components = data_set.points.map((data_point, key) => {
             return create_point(data_point, key)
         })
 
         set_data_point_components(components)
-    }, [data_points, selected_point, set_data_points, set_selected_point])
+    }, [data_set, selected_point, set_data_set, set_selected_point])
 
     const on_add_data_point = () => {
-        set_data_points(data_points.concat({ x: 0, y: 0 }))
+        set_data_set({
+            points: data_set.points.concat({ x: 0, y: 0 }),
+            groups: data_set.groups,
+        })
     }
 
     const on_randomize_data = () => {
-        set_data_points(generate_random_points(data_points.length))
+        set_data_set({
+            points: generate_random_points(data_set.points.length),
+            groups: data_set.groups,
+        })
     }
 
     const on_iterate = () => {
-        set_groups(classify(data_points, groups))
+        set_data_set({
+            points: data_set.points,
+            groups: classify(data_set.points, data_set.groups),
+        })
     }
 
     return (

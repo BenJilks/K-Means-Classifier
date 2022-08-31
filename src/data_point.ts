@@ -8,6 +8,10 @@ const random_decimal_places = 3
 const random_scale = 6
 
 export type DataPoint = { x: number, y: number }
+export type DataSet = {
+    points: DataPoint[],
+    groups: DataPoint[],
+}
 
 export function generate_random_points(count: number): DataPoint[] {
     const decimal_places = 10 ** random_decimal_places
