@@ -7,10 +7,11 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { DataPoint } from '../../data_point'
 import { classify, group_data_points } from '../../classifier'
-import { DisplayContext, draw_webgl, init_webgl, resize_webgl } from './draw'
+import { DisplayContext, draw_webgl, group_radius, init_webgl, resize_webgl } from './draw'
 import { grid_size_px } from './shaders/grid'
 import { find_point_under_cursor } from './input'
 import { DataSet } from '../../data_point'
+import { RandomizerState } from '../settings/randomizer'
 import styles from './index.module.css'
 
 export type ClusterInfo = {
@@ -39,11 +40,18 @@ function compute_cluster_info(data_points: DataPoint[], groups: DataPoint[]): Cl
 type DataDisplayProps = {
     data_set: DataSet,
     selected_point: number | undefined,
+    randomizer_state: RandomizerState,
     set_data_set: React.Dispatch<React.SetStateAction<DataSet>>,
     set_selected_point: React.Dispatch<React.SetStateAction<number | undefined>>,
+    set_randomizer_state: React.Dispatch<React.SetStateAction<RandomizerState>>,
 }
 
-export default function DataDisplay({ data_set, selected_point, set_data_set, set_selected_point }: DataDisplayProps) {
+export default function DataDisplay({ data_set,
+                                      selected_point,
+                                      randomizer_state,
+                                      set_data_set,
+                                      set_selected_point,
+                                      set_randomizer_state }: DataDisplayProps) {
     const canvas_ref = useRef(document.createElement('canvas'))
     const rendering_context = useRef(null as DisplayContext | null)
 
@@ -82,17 +90,18 @@ export default function DataDisplay({ data_set, selected_point, set_data_set, se
             requestAnimationFrame(() => {
                 if (rendering_context.current == null)
                     rendering_context.current = init_webgl(gl)
-                draw_webgl(gl, rendering_context.current!, view_state, cluster_info, selected_point)
+                draw_webgl(gl, rendering_context.current!, view_state, cluster_info, randomizer_state, selected_point)
             })
         }
 
         handleResize()
         window.addEventListener("resize", handleResize)
-    }, [view_state, cluster_info, selected_point])
+    }, [view_state, cluster_info, randomizer_state, selected_point])
 
     const [is_mouse_down, set_is_mouse_down] = useState(false)
     const [is_dragging_point, set_is_dragging_point] = useState(false)
-
+    const [is_dragging_center, set_is_dragging_center] = useState(false)
+    const [selected_center, set_selected_center] = useState(undefined as number | undefined)
     const compute_cursor_position = (event: React.MouseEvent) => {
         const bounding_rect = canvas_ref.current.getBoundingClientRect()
         return {
@@ -103,16 +112,27 @@ export default function DataDisplay({ data_set, selected_point, set_data_set, se
 
     const on_mouse_down = (event: React.MouseEvent) => {
         const cursor = compute_cursor_position(event)
+
         const point_under_cursor = find_point_under_cursor(data_set.points, view_state, cursor)
-        if (point_under_cursor !== undefined)
+        if (point_under_cursor !== undefined) {
             set_is_dragging_point(true)
+        }
         set_selected_point(point_under_cursor)
+
+        if (randomizer_state.is_open && randomizer_state.enable_centers) {
+            const center_inder_cursor = find_point_under_cursor(randomizer_state.centers, view_state, cursor, group_radius * 1.7)
+            if (center_inder_cursor !== undefined) {
+                set_is_dragging_center(true)
+            }
+            set_selected_center(center_inder_cursor)
+        }
 
         set_is_mouse_down(true)
     }
 
     const on_mouse_up = () => {
         set_is_dragging_point(false)
+        set_is_dragging_center(false)
         set_is_mouse_down(false)
     }
 
@@ -129,6 +149,18 @@ export default function DataDisplay({ data_set, selected_point, set_data_set, se
             set_data_set({
                 points: data_set.points,
                 groups: data_set.groups,
+            })
+        } else if (selected_center !== undefined && is_dragging_center) {
+            canvas.style.cursor = 'pointer'
+            randomizer_state.centers[selected_center] = {
+                x: (cursor.x * view_state.zoom - view_state.offset.x) / grid_size_px,
+                y: (cursor.y * view_state.zoom - view_state.offset.y) / grid_size_px,
+            }
+
+            set_randomizer_state({
+                is_open: randomizer_state.is_open,
+                enable_centers: randomizer_state.enable_centers,
+                centers: randomizer_state.centers,
             })
         } else {
             set_view_state({
@@ -148,8 +180,18 @@ export default function DataDisplay({ data_set, selected_point, set_data_set, se
         const cursor = compute_cursor_position(event)
         if (is_mouse_down) {
             on_mouse_drag(event, cursor)
-        } else if (find_point_under_cursor(data_set.points, view_state, cursor) !== undefined) {
+            return
+        }
+
+        if (find_point_under_cursor(data_set.points, view_state, cursor) !== undefined) {
             canvas.style.cursor = 'pointer'
+        }
+
+        if (randomizer_state.is_open && randomizer_state.enable_centers) {
+            if (find_point_under_cursor(randomizer_state.centers, view_state,
+                                        cursor, group_radius * 1.7) !== undefined) {
+                canvas.style.cursor = 'pointer'
+            }
         }
     }
 

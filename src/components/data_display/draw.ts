@@ -7,14 +7,17 @@
 import { mat4, vec2, vec3 } from 'gl-matrix'
 import { ClusterInfo, ViewState } from '.'
 import { DataPoint } from '../../data_point'
+import { RandomizerState } from '../settings/randomizer'
 import grid_shader_source, { grid_size_px } from './shaders/grid'
 import point_shader_source, { point_radius } from './shaders/point'
 import ring_shader_source from './shaders/ring'
 import line_shader_source from './shaders/line'
 
 const selection_color = [0.14, 0.06, 0.67, 1.0]
+const randomizer_center_color = [0.11, 0.45, 0.87, 0.8]
+
+export const group_radius = 25
 const new_group_alpha = 0.8
-const group_radius = 25
 const group_colors = [
     [1.0, 0.33, 0.33, 1.0],
     [0.33, 1.0, 0.33, 1.0],
@@ -37,9 +40,9 @@ type Shader = {
 
     point_position: WebGLUniformLocation | null,
     point_color: WebGLUniformLocation | null,
+    point_radius: WebGLUniformLocation | null,
 
     ring_width: WebGLUniformLocation | null,
-    ring_radius: WebGLUniformLocation | null,
     ring_gap_size: WebGLUniformLocation | null,
 
     line_transform: WebGLUniformLocation | null,
@@ -106,9 +109,9 @@ function load_shader_program(gl: WebGLRenderingContext, source: ShaderSource): S
 
         point_position: gl.getUniformLocation(program, 'point_position'),
         point_color: gl.getUniformLocation(program, 'point_color'),
+        point_radius: gl.getUniformLocation(program, 'point_radius'),
 
         ring_width: gl.getUniformLocation(program, 'ring_width'),
-        ring_radius: gl.getUniformLocation(program, 'ring_radius'),
         ring_gap_size: gl.getUniformLocation(program, 'ring_gap_size'),
 
         line_transform: gl.getUniformLocation(program, 'line_transform'),
@@ -199,6 +202,7 @@ function draw_data_points(gl: WebGLRenderingContext,
                           cluster_info: ClusterInfo) {
     bind_shader(gl, point_shader, view_state)
 
+    gl.uniform1f(point_shader.point_radius, point_radius)
     for (let i = 0; i < cluster_info.clusters.length; i++) {
         const cluster = cluster_info.clusters[i]
         gl.uniform4fv(point_shader.point_color, group_colors[i])
@@ -224,15 +228,15 @@ function draw_groups(gl: WebGLRenderingContext,
         draw_buffer(gl, ring_shader, quad)
     }
 
+    gl.uniform1f(ring_shader.point_radius, group_radius)
     gl.uniform1f(ring_shader.ring_width, 0.3)
-    gl.uniform1f(ring_shader.ring_radius, group_radius)
     gl.uniform1f(ring_shader.ring_gap_size, Math.PI * 0.25)
     for (let i = 0; i < cluster_info.groups.length; i++) {
         draw_group(i, cluster_info.groups[i], 1.0)
     }
 
+    gl.uniform1f(ring_shader.point_radius, group_radius * 0.8)
     gl.uniform1f(ring_shader.ring_width, 0.2)
-    gl.uniform1f(ring_shader.ring_radius, group_radius * 0.8)
     gl.uniform1f(ring_shader.ring_gap_size, Math.PI * 0.2)
     for (let i = 0; i < cluster_info.new_groups.length; i++) {
         draw_group(i, cluster_info.new_groups[i], new_group_alpha)
@@ -300,26 +304,59 @@ function draw_selected_point(gl: WebGLRenderingContext,
 
     bind_shader(gl, ring_shader, view_state)
 
-    gl.uniform1f(ring_shader.ring_width, 0.1)
-    gl.uniform1f(ring_shader.ring_radius, point_radius * 1.5)
-    gl.uniform1f(ring_shader.ring_gap_size, 0)
-    gl.uniform2f(ring_shader.point_position, selected.x * grid_size_px, selected.y * grid_size_px)
     gl.uniform4fv(ring_shader.point_color, selection_color)
+    gl.uniform1f(ring_shader.point_radius, point_radius * 1.5)
+    gl.uniform2f(ring_shader.point_position, selected.x * grid_size_px, selected.y * grid_size_px)
+    gl.uniform1f(ring_shader.ring_width, 0.1)
+    gl.uniform1f(ring_shader.ring_gap_size, 0)
     draw_buffer(gl, ring_shader, quad)
+}
+
+function draw_randomizer_centers(gl: WebGLRenderingContext,
+                                 point_shader: Shader,
+                                 ring_shader: Shader,
+                                 quad: WebGLBuffer,
+                                 view_state: ViewState,
+                                 randomizer_state: RandomizerState) {
+    bind_shader(gl, point_shader, view_state)
+    gl.uniform4fv(point_shader.point_color, randomizer_center_color)
+    gl.uniform1f(point_shader.point_radius, group_radius * 1.2)
+    for (const point of randomizer_state.centers) {
+        gl.uniform2f(point_shader.point_position, point.x * grid_size_px, point.y * grid_size_px)
+        draw_buffer(gl, point_shader, quad)
+    }
+
+    bind_shader(gl, ring_shader, view_state)
+    gl.uniform4fv(ring_shader.point_color, randomizer_center_color)
+    gl.uniform1f(ring_shader.point_radius, group_radius * 1.7)
+    gl.uniform1f(ring_shader.ring_gap_size, 0)
+    gl.uniform1f(ring_shader.ring_width, 0.2)
+    for (const point of randomizer_state.centers) {
+        gl.uniform2f(ring_shader.point_position, point.x * grid_size_px, point.y * grid_size_px)
+        draw_buffer(gl, ring_shader, quad)
+    }
 }
 
 export function draw_webgl(gl: WebGLRenderingContext,
                            { grid_shader, point_shader, ring_shader, line_shader, quad }: DisplayContext,
                            view_state: ViewState,
                            cluster_info: ClusterInfo,
+                           randomizer_state: RandomizerState,
                            selected_point: number | undefined) {
     gl.clearColor(0.0, 0.0, 0.0, 1.0)
     gl.clear(gl.COLOR_BUFFER_BIT)
 
     draw_grid(gl, grid_shader, quad, view_state)
     draw_data_points(gl, point_shader, quad, view_state, cluster_info)
-    draw_new_group_lines(gl, line_shader, quad, view_state, cluster_info)
-    draw_groups(gl, ring_shader, quad, view_state, cluster_info)
     draw_selected_point(gl, ring_shader, quad, view_state, cluster_info, selected_point)
+
+    if (randomizer_state.is_open) {
+        if (randomizer_state.enable_centers) {
+            draw_randomizer_centers(gl, point_shader, ring_shader, quad, view_state, randomizer_state)
+        }
+    } else {
+        draw_new_group_lines(gl, line_shader, quad, view_state, cluster_info)
+        draw_groups(gl, ring_shader, quad, view_state, cluster_info)
+    }
 }
 

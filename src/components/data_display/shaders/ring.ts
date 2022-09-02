@@ -12,13 +12,13 @@ const ring_shader_source = {
         uniform mat4 projection;
         uniform vec2 offset;
         uniform vec2 point_position;
-        uniform float ring_radius;
+        uniform float point_radius;
         varying vec2 v_position;
 
         void main() {
             v_position = position.xy;
 
-            vec2 screen_position = position.xy * vec2(ring_radius) + offset + point_position;
+            vec2 screen_position = position.xy * vec2(point_radius) + offset + point_position;
             gl_Position = projection * vec4(screen_position, 0.0, 1.0);
         }
     `,

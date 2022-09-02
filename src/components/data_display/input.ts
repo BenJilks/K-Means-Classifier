@@ -18,7 +18,8 @@ function distance_squared(p1: { x: number, y: number },
 
 export function find_point_under_cursor(data_points: DataPoint[],
                                         { offset, zoom }: ViewState,
-                                        cursor: { x: number, y: number }): number | undefined {
+                                        cursor: { x: number, y: number },
+                                        radius = point_radius): number | undefined {
     for (let index = 0; index < data_points.length; index++) {
         const point = data_points[index]
         const point_in_view = {
@@ -27,7 +28,8 @@ export function find_point_under_cursor(data_points: DataPoint[],
         }
 
         const distance = distance_squared(point_in_view, cursor)
-        if (distance <= point_radius*point_radius) {
+        const view_radius = radius / zoom
+        if (distance <= view_radius*view_radius) {
             return index
         }
     }

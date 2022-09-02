@@ -1,0 +1,43 @@
+/*
+ * Copyright (c) 2022, Ben Jilks <benjyjilks@gmail.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+.data_point_list, .disabled {
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+
+    width: 14em;
+    height: 0px;
+    padding: 0.5em;
+    margin: 0px;
+
+    border: 1px solid #555;
+    border-radius: 0.3em;
+    overflow-y: scroll;
+}
+
+.disabled .data_point label {
+    color: #777;
+}
+
+.data_point, .data_point_selected {
+    display: flex;
+    padding: 0.5em 0.5em 0.5em 0em;
+    width: 12em;
+}
+
+.data_point_selected {
+    outline: 1px solid #230FAA;
+}
+
+.data_point input, .data_point_selected input {
+    flex-grow: 1;
+    width: 0px;
+}
+
+.data_point label, .data_point_selected label {
+    margin: 0em 0.5em;
+}

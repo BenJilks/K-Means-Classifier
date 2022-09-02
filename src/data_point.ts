@@ -13,18 +13,21 @@ export type DataSet = {
     groups: DataPoint[],
 }
 
-export function generate_random_points(count: number): DataPoint[] {
+export function generate_random_points(count: number,
+                                       spread: number = random_scale,
+                                       centers: DataPoint[] = [{ x: 0, y: 0 }]): DataPoint[] {
     const decimal_places = 10 ** random_decimal_places
     const round = (x: number) =>
         Math.round(x * decimal_places) / decimal_places
 
     const new_points = new Array(count)
     for (let i = 0; i < count; i++) {
+        const center = centers[Math.round(Math.random() * (centers.length-1))]
         const rotation = Math.random() * Math.PI * 2
-        const radius = Math.random() * random_scale
+        const radius = Math.random() * spread
         new_points[i] = {
-            x: round(Math.sin(rotation) * radius),
-            y: round(Math.cos(rotation) * radius),
+            x: center.x + round(Math.sin(rotation) * radius),
+            y: center.y + round(Math.cos(rotation) * radius),
         }
     }
 

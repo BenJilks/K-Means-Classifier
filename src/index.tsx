@@ -6,6 +6,7 @@
 
 import { useState } from 'react'
 import { generate_random_points } from './data_point'
+import { create_randomizer_state } from './components/settings/randomizer'
 import ReactDOM from 'react-dom/client'
 import Settings from './components/settings'
 import Splitter from './components/splitter'
@@ -26,22 +27,27 @@ function Body() {
         })
     })
 
-    const [selected_point, set_selected_point] = useState(
-        undefined as number | undefined)
-
+    const [selected_point, set_selected_point] = useState(undefined as number | undefined)
+    const [randomizer_state, set_randomizer_state] = useState(create_randomizer_state())
     return (
         <Splitter>
             <Settings
                 data_set={ data_set }
                 selected_point={ selected_point }
+                randomizer_state={ randomizer_state }
                 set_data_set={ set_data_set }
-                set_selected_point={ set_selected_point } />
+                set_selected_point={ set_selected_point }
+                set_randomizer_state={ set_randomizer_state }
+            />
 
             <DataDisplay
                 data_set={ data_set }
                 selected_point={ selected_point }
+                randomizer_state={ randomizer_state }
                 set_data_set={ set_data_set }
-                set_selected_point={ set_selected_point } />
+                set_selected_point={ set_selected_point }
+                set_randomizer_state={ set_randomizer_state }
+            />
         </Splitter>
     )
 }
